@@ -1,0 +1,92 @@
+@import 'reset.scss';
+
+$TOOLBAR_HEIGHT		: 30px ;
+$STATUS_HEIGHT 		: 30px ;
+$HELP_WIDTH 		: 250px ;
+
+#wrapper {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	background: white;
+}
+
+#toolbar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: $TOOLBAR_HEIGHT;
+	background: red;
+}
+
+#help {
+	position: absolute;
+	top: $TOOLBAR_HEIGHT;
+	left: 0;
+	width: $HELP_WIDTH;
+	bottom: $STATUS_HEIGHT;
+	background: black;
+	
+	transition-property: -webkit-transform;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-in-out;
+
+	-webkit-transform: translate(-$HELP_WIDTH, 0);
+}
+
+#tracks {
+	position: absolute;
+	top: $TOOLBAR_HEIGHT;
+	left: 0;
+	right: 0;
+	bottom: $STATUS_HEIGHT;
+	background: green;
+
+	transition-property: left;
+	transition-duration: 0.3s;
+	transition-timing-function: ease-in-out;
+
+	.mark {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 10px;
+		bottom: 0;
+		background: yellow;
+	}
+
+	.track {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		box-sizing: border-box;
+
+		border-right: 1px solid black;
+		border-left: 1px solid black;
+
+		&:last-child { border-right: none }
+		&:first-child { border-left: none }
+
+
+		&:nth-child(1) { background: pink }
+		&:nth-child(2) { background: orange }
+		&:nth-child(3) { background: green }
+	}
+}
+
+#status {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: $STATUS_HEIGHT;
+	background: blue;
+}
+
+body.help-visible {
+	#help { -webkit-transform: translate(0,0); }
+	&.help-pinned #tracks { left: $HELP_WIDTH; }
+}

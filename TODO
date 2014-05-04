@@ -1,0 +1,79 @@
+# TODO
+
+Talk
+----
+
+Introduction
+
+Introduce Steptoe
+  - JS-like language
+  - Benefits of JS semantics
+  - Demonstrate env - add IO to it + functions are added to the stack
+
+Repetition
+
+Creativity
+  - reduce likelihood of error
+    - name mangling
+    - auto formatting
+    - scope highlighting
+    - record / rewind
+    - allow experimentation
+    - generate code from examples
+
+
+-----
+
+Open questions:
+  - snapshots (for rewind, demonstrate)
+  - visualisation of stack/variables
+
+
+UI - environment list
+UI - create function
+UI - edit function
+UI - create image
+UI - create sound?
+
+ - language changes
+   - idents get display name and internal name
+
+ - all canvas drawing functions have access to VM context
+ - whenever drawing operation takes place, associate with it current VM cycle, plus the
+   node that was executing when it ran.
+ 
+ - timeline view plots either:
+   - condensed view
+   - by cycle
+   - by time
+
+ - timeline:
+   - row per channel:
+     - canvas input
+     - canvas output
+     - console input
+     - console output
+
+ - editor
+   - function
+     - variables
+     - inner functions
+     - body
+   - associate each node with real AST node (observe node)
+   - rename operation
+   - dim highlight accessible variables and accessible scopes
+
+
+ - test in place
+   - 
+
+
+
+
+
+REPL
+Rewindable canvas
+Function editor/improver
+Sketchpad
+jQuery UI
+Variables updating

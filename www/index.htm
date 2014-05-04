@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>steptoe</title>
+  <link rel='stylesheet' href='assets/main.css'>
+  <script src='jquery.js'></script>
+  <script src='bundle.js'></script>
+  <script>
+
+    // function Query(context, selector) {
+    //   this._context = context;
+    //   this._selector = selector;
+    // }
+
+    // Query.prototype._results = function() {
+    //   if (!this._els) {
+    //     this._els = Array.prototype.slice.call(this._context.querySelectorAll(this._selector), 0);
+    //   }
+    //   return this._els;
+    // }
+
+    // Query.prototype.on = function(evt, cb) {
+    //   this._results().forEach(function(el) {
+    //     el.addEventListener(evt, cb);
+    //   });
+    // }
+
+    // function q(selector) {
+    //   return new Query(document, selector);
+    // }
+
+  </script>
+
+  <script>
+    // function init() {
+
+    //   q('.show-help').on('click', function() {
+    //     document.body.classList.add('help-visible');
+    //   });
+
+    //   q('.hide-help').on('click', function() {
+    //     document.body.classList.remove('help-visible');
+    //   });
+
+    //   q('.pin-help').on('click', function() {
+    //     document.body.classList.toggle('help-pinned');
+    //   });
+
+    // }
+  </script>
+</head>
+<body onload='init();'>
+
+  <textarea id='code' style='width:100%;height:200px'></textarea>
+  <input type='button' id='run' value='Run' />
+  <br>
+  <br>
+  <canvas id='canvas' width='500' height='350' style='width:500px;height:350px;border:1px solid black;margin:0 auto; display: block;'></canvas>
+
+
+  <!--
+  <div id='wrapper'>
+
+    <div id='toolbar'>
+      <a href='#' class='show-help'>show help</a>
+      <a href='#' class='hide-help'>hide help</a>
+      <a href='#' class='pin-help'>pin help</a>
+    </div>
+
+    <div id='tracks'>
+      <div class='track' style='left:0;width:30%'></div>
+      <div class='track' style='left:30%;width:40%'></div>
+      <div class='track' style='left:70%;width:30%'></div>
+    </div>
+
+    <div id='help'>
+
+    </div>
+
+    <div id='status'>
+
+    </div>
+
+  </div>
+
+-->
+</body>
+</html>
