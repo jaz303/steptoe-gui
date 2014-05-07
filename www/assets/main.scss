@@ -1,92 +1,394 @@
 @import 'reset.scss';
 
-$TOOLBAR_HEIGHT		: 30px ;
-$STATUS_HEIGHT 		: 30px ;
-$HELP_WIDTH 		: 250px ;
+$TOOLBAR_HEIGHT             : 40px ;
+$STATUS_HEIGHT              : 36px ;
+$HELP_WIDTH                 : 250px ;
+    
+$COLOR_FUNCTION             : green ;
+$COLOR_FOREIGN_FUNCTION     : red ;
+$COLOR_SOUND                : cyan ;
+$COLOR_IMAGE                : orange ;
 
-#wrapper {
-	position: absolute;
-	top: 0;
-	left: 0;
-	bottom: 0;
-	right: 0;
-	background: white;
+body {
+    font: 14px/1.4 "Avenir Next Medium", Helvetica, Arial, sans-serif;
 }
 
-#toolbar {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: $TOOLBAR_HEIGHT;
-	background: red;
+code {
+    font-family: monospace;
+}
+
+.toolbar {
+    box-sizing: border-box;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: $TOOLBAR_HEIGHT;
+    background: #202020;
+    border-bottom: 2px solid #282828;
+    padding: ($TOOLBAR_HEIGHT - 24px) / 2;
+
+    a {
+        text-decoration: none;
+        box-sizing: border-box;
+        border-radius: 5px;
+        float: left;
+        padding: 5px 4px 3px 4px;
+        font-size: 16px;
+        line-height: 1;
+        background: #81EDEB;
+        text-align: center;
+        min-width: 24px;
+        color: black;
+        margin-right: 5px;
+
+        .title {
+            font-size: 13px;
+        }
+    }
+}
+
+.bubble {
+    position: absolute;
+
+    > .inner {
+        box-sizing: border-box;
+        background: rgba(200,200,200,0.9);
+        padding: 8px;
+        border-radius: 10px;
+    }
+
+    > .block-menu {
+        a {
+            text-decoration: none;
+            box-sizing: border-box;
+            display: inline-block;
+            text-align: center;
+            margin-right: 5px;
+            min-width: 24px;
+            height: 24px;
+            background: green;
+            color: white;
+            padding: 3px 5px 5px 5px;
+            border-radius: 5px;
+            &:last-child {
+                margin-right: 0;
+            }
+
+            @mixin item($class, $color) {
+                &.#{$class} {
+                    background-color: $color;
+                    opacity: 0.4;
+                    &.active {
+                        opacity: 1;    
+                    }
+                }
+            }
+
+            @include item(function, $COLOR_FUNCTION);
+            @include item(image, $COLOR_IMAGE);
+            @include item(sound, $COLOR_SOUND);
+
+        }
+        input[type=text] {
+            height: 24px;
+            background: white;
+            padding: 0 8px;
+            line-height: 1;
+            border: none;
+            border-radius: 5px;
+            display: inline-block;
+            &:focus {
+                outline: none;
+            }
+        }
+        .name-input {
+            margin-top: 8px;
+        }
+        * {
+            vertical-align: middle;
+        }
+    }
+}
+
+#wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: white;
 }
 
 #help {
-	position: absolute;
-	top: $TOOLBAR_HEIGHT;
-	left: 0;
-	width: $HELP_WIDTH;
-	bottom: $STATUS_HEIGHT;
-	background: black;
-	
-	transition-property: -webkit-transform;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-in-out;
+    position: absolute;
+    top: $TOOLBAR_HEIGHT;
+    left: 0;
+    width: $HELP_WIDTH;
+    bottom: $STATUS_HEIGHT;
+    background: black;
+    
+    transition-property: -webkit-transform;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
 
-	-webkit-transform: translate(-$HELP_WIDTH, 0);
+    -webkit-transform: translate(-$HELP_WIDTH, 0);
 }
 
 #tracks {
-	position: absolute;
-	top: $TOOLBAR_HEIGHT;
-	left: 0;
-	right: 0;
-	bottom: $STATUS_HEIGHT;
-	background: green;
+    position: absolute;
+    top: $TOOLBAR_HEIGHT;
+    left: 0;
+    right: 0;
+    bottom: $STATUS_HEIGHT;
+    background: green;
 
-	transition-property: left;
-	transition-duration: 0.3s;
-	transition-timing-function: ease-in-out;
+    transition-property: left;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
 
-	.mark {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 10px;
-		bottom: 0;
-		background: yellow;
-	}
+    .mark {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 10px;
+        bottom: 0;
+        background: yellow;
+    }
 
-	.track {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		box-sizing: border-box;
+    .track {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        box-sizing: border-box;
 
-		border-right: 1px solid black;
-		border-left: 1px solid black;
+        border-right: 1px solid #282828;
+        border-left: 1px solid #282828;
 
-		&:last-child { border-right: none }
-		&:first-child { border-left: none }
+        &:last-child { border-right: none }
+        &:first-child { border-left: none }
 
 
-		&:nth-child(1) { background: pink }
-		&:nth-child(2) { background: orange }
-		&:nth-child(3) { background: green }
-	}
+        &:nth-child(1) { background: #181818 }
+        &:nth-child(2) { background: #181818 }
+        &:nth-child(3) { background: #181818 }
+    }
+
+    .track-contents {
+        position: absolute;
+        top: $TOOLBAR_HEIGHT;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: auto;
+    }
 }
 
 #status {
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	height: $STATUS_HEIGHT;
-	background: blue;
+    box-sizing: border-box;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: $STATUS_HEIGHT;
+    background: #202020;
+    border-top: 2px solid #282828;
+    color: #4EE7BF;
+    font-size: 12px;
+    line-height: 1;
+    padding: 7px 12px 0 12px;
+
+    .steptoe {
+        font-weight: bold;
+        letter-spacing: 0px;
+        font-size: 140%;
+        color: #FF6666;
+        text-shadow: 0 0 3px black;
+    }
+
+    > * {
+        margin-right: 15px;
+    }
+
+    a {
+        color: #9AFDBF;
+        text-decoration: none;
+        &:hover {
+            text-decoration: underline;
+        }
+    }
 }
 
 body.help-visible {
-	#help { -webkit-transform: translate(0,0); }
-	&.help-pinned #tracks { left: $HELP_WIDTH; }
+    #help { -webkit-transform: translate(0,0); }
+    &.help-pinned #tracks { left: $HELP_WIDTH; }
+}
+
+//
+// Environment
+
+#env {
+    .env {
+        
+        li {
+            margin-bottom: 10px;
+            &:last-child { margin-bottom: 0; }
+        }
+
+        .item {
+            .header {
+                display: table;
+                width: 100%;
+            }
+            .header-row {
+                display: table-row;
+            }
+            .header-row > * {
+                display: table-cell;
+                vertical-align: middle;
+                padding-top: 3px;
+                padding-bottom: 3px;
+            }
+            .icon {
+                border-top-left-radius: 5px;
+                width: 30px;
+                text-align: center;
+                color: white;
+            }
+            .name {
+                -webkit-transition: background-color 0.3s ease-out;
+                padding: 0 10px;
+                font-size: 12px;
+                background: #303030;
+                color: white;
+                font-family: monospace;
+            }
+            .edit {
+                width: 30px;
+                background: #606060;
+                text-align: center;
+                color: white;
+            }
+            .expander {
+                border-top-right-radius: 5px;
+                width: 30px;
+                background: #505050;
+                text-align: center;
+                color: white;
+            }
+            .content {
+                box-sizing: border-box;
+                display: none;
+                padding: 10px;
+                background: #c0c0c0;
+                border-bottom-left-radius: 5px;
+                border-bottom-right-radius: 5px;
+            }
+
+            &:not(.expanded) {
+                .icon {
+                    border-bottom-left-radius: 5px;
+                }
+                .expander {
+                    border-bottom-right-radius: 5px;
+                }
+            }
+
+            &.function .icon {
+                background-color: $COLOR_FUNCTION;
+            }
+
+            &.foreign-function .icon {
+                background-color: $COLOR_FOREIGN_FUNCTION;   
+            }
+
+            &.image .icon {
+                background-color: $COLOR_IMAGE;
+            }
+
+            &.image .preview {
+                height: 200px;
+                background-color: #808080;
+                background-size: contain;
+                background-position: center center;
+                background-repeat: no-repeat;
+            }
+
+            &.sound .icon {
+                background-color: $COLOR_SOUND;
+            }
+
+            &.sound .preview {
+                display: block;
+                width: 100%;
+                height: 70px;
+                background: blue;
+                margin-bottom: 5px;
+            }
+
+            .preview {
+                box-sizing: border-box;
+                &.drop-active {
+                    border: 5px solid orange;
+                }
+            }
+            
+            &.out {
+                .name {
+                    background: #a0a0a0;
+                }
+            }
+        }
+    }
+}
+
+//
+// IO
+
+#io {
+    .track-contents {
+        li {
+            margin-bottom: 10px;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+    }
+}
+
+.io-instance {
+    position: relative;
+
+    .destroy {
+        position: absolute;
+        width: 20px;
+        text-align: center;
+        right: 0;
+        top: 0;
+        display: none;
+    }
+
+    &:hover {
+        .destroy {
+            display: block;
+        }
+    }
+}
+
+.io-instance.io-canvas {
+    height: 400px;
+    background: blue;   
+}
+
+.io-instance.io-console {
+    height: 200px;
+    background: green;
+}
+
+.io-instance.io-audio {
+    height: 70px;
+    background: orange;
 }

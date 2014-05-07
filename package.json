@@ -1,3 +1,7 @@
 {
-	"name": "steptoe-gui"
+  "name": "steptoe-gui",
+  "dependencies": {
+    "traitor": "~0.8.0",
+    "audio-context": "0.0.0"
+  }
 }

@@ -4,6 +4,7 @@
 <head>
   <title>steptoe</title>
   <link rel='stylesheet' href='assets/main.css'>
+  <link rel='stylesheet' href='assets/font-awesome/css/font-awesome.css'>
   <script src='jquery.js'></script>
   <script src='bundle.js'></script>
   <script>
@@ -52,26 +53,34 @@
 </head>
 <body onload='init();'>
 
+<!--
   <textarea id='code' style='width:100%;height:200px'></textarea>
   <input type='button' id='run' value='Run' />
   <br>
   <br>
   <canvas id='canvas' width='500' height='350' style='width:500px;height:350px;border:1px solid black;margin:0 auto; display: block;'></canvas>
+-->
 
-
-  <!--
   <div id='wrapper'>
 
-    <div id='toolbar'>
-      <a href='#' class='show-help'>show help</a>
-      <a href='#' class='hide-help'>hide help</a>
-      <a href='#' class='pin-help'>pin help</a>
-    </div>
+    <div id='toolbar' class='toolbar'></div>
 
     <div id='tracks'>
-      <div class='track' style='left:0;width:30%'></div>
-      <div class='track' style='left:30%;width:40%'></div>
-      <div class='track' style='left:70%;width:30%'></div>
+      <div class='track' style='left:0;width:20%' id='env'>
+        <div class='toolbar'>
+          
+        </div>
+        <ul class='track-contents env'></ul>
+      </div>
+      <div class='track' style='left:20%;width:40%' id='editors'>
+
+      </div>
+      <div class='track' style='left:60%;width:40%' id='io'>
+        <div class='toolbar'>
+          
+        </div>
+        <ul class='track-contents env'></ul>
+      </div>
     </div>
 
     <div id='help'>
@@ -79,11 +88,106 @@
     </div>
 
     <div id='status'>
-
+      <span class='steptoe'>steptoe</span>
+      <span>&copy; 2014 Jason Frame</span>
+      <a href='http://twitter.com/jaz303'><i class='fa fa-twitter'></i> @jaz303</a>
+      <a href='http://github.com/jaz303/steptoe-gui'><i class='fa fa-github-alt'></i> <code>jaz303/steptoe-gui</code></a>
     </div>
 
   </div>
 
--->
+  <div id='templates' style='display:none'>
+
+    <div data-template-id='function'>
+      <div class='item function'>
+        <div class='header'>
+          <div class='header-row'>
+            <span class='icon'>&lambda;</span>
+            <span class='name'></span>
+            <a href='#' class='edit'>
+              <i class='fa fa-pencil'></i>
+            </a>
+            <a href='#' class='expander'>
+              <i class='fa fa-chevron-up'></i>
+            </a>
+          </div>
+        </div>
+        <div class='content'>
+        </div>
+      </div>
+    </div>
+
+    <div data-template-id='foreign-function'>
+      <div class='item foreign-function'>
+        <div class='header'>
+          <div class='header-row'>
+            <span class='icon'>&lambda;</span>
+            <span class='name'></span>
+            <a href='#' class='expander'>
+              <i class='fa fa-chevron-up'></i>
+            </a>
+          </div>
+        </div>
+        <div class='content'>
+        </div>
+      </div>
+    </div>
+
+    <div data-template-id='image'>
+      <div class='item image'>
+        <div class='header'>
+          <div class='header-row'>
+            <span class='icon'><i class='fa fa-picture-o'></i></span>
+            <span class='name'></span>
+            <a href='#' class='expander'>
+              <i class='fa fa-chevron-up'></i>
+            </a>
+          </div>
+        </div>
+        <div class='content'>
+          <div class='preview'></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-template-id='sound'>
+      <div class='item sound'>
+        <div class='header'>
+          <div class='header-row'>
+            <span class='icon'><i class='fa fa-volume-up'></i></span>
+            <span class='name'></span>
+            <a href='#' class='expander'>
+              <i class='fa fa-chevron-up'></i>
+            </a>
+          </div>
+        </div>
+        <div class='content'>
+          <canvas class='preview'></canvas>
+          <button class='play'><i class='fa fa-play'></i></button>
+          <button class='stop'><i class='fa fa-stop'></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div data-template-id='function-editor'>
+      <div class='function-editor'>
+        <div class='header'>
+          <div class='signature'>
+            function <span class='function-name'></span>(<span class='function-args'></span>)
+          </div>
+          <a href='#' class='close'>
+            <i class='fa fa-minus'></i>
+          </a>
+        </div>
+        <div class='body'>
+          <div class='variables'></div>
+          <div class='functions'></div>
+          <div class='statements'></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
 </body>
 </html>

@@ -1,10 +1,916 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var parser = require('./lib/parser');
+require('./lib/traits');
 
+module.exports = {
+    UI      : require('./lib/UI')
+}
+},{"./lib/UI":4,"./lib/traits":15}],2:[function(require,module,exports){
 var T = require('traitor');
-T.register('st:emitter', function() {
+
+module.exports = T.make(['events'], {
+
+	__construct: function() {
+		this._items = [];
+	},
+
+	at: function(ix) {
+		return this._items[ix];
+	},
+
+	add: function(item) {
+		this._items.push(item);
+		this.emit('change:add', {
+			type 		: 'change:add',
+			item 		: item,
+			position	: this._items.length - 1
+		});
+	},
+
+	remove: function(item) {
+		var ix = this.indexOf(item);
+		if (ix >= 0) {
+			this._items.splice(ix, 1);
+			this.emit('change:remove', {
+				type 		: 'change:remove',
+				item 		: item,
+				position	: ix
+			});
+		}
+	},
+
+	indexOf: function(item) {
+		return this._items.indexOf(item);
+	}
 
 });
+},{"traitor":52}],3:[function(require,module,exports){
+var T = require('traitor');
+
+function Button(el, callback) {
+
+	el.on('click', function(evt) {
+		evt.preventDefault();
+		evt.stopPropagation();
+		callback();
+	});
+
+}
+
+var Toolbar = module.exports = T.make(['events'], {
+
+	__construct: function(el) {
+		this._root = el;
+	},
+
+	addButton: function(opts) {
+		
+		var el = $('<a href="#" />');
+
+		if ('className' in opts) {
+			el.addClass(opts.className);
+		}
+
+		if ('icon' in opts) {
+			el.append("<i class='fa fa-" + opts.icon + "'></i>");
+		}
+
+		if ('title' in opts) {
+			el.append(" <span class='title'>" + opts.title + "</span>");
+		}
+
+		this._root.appendChild(el[0]);
+
+		return new Button(el, opts.callback);
+
+	}
+
+});
+
+},{"traitor":52}],4:[function(require,module,exports){
+var steptoe     = require('steptoe');
+var Collection  = require('./Collection');
+var C           = require('./controllers');
+var Toolbar     = require('./Toolbar');
+var types       = require('./types');
+
+var UI = module.exports = function() {
+
+    var $env            = steptoe.createEnv();
+    var functionEditors = new Collection();
+    var audioContext    = require('audio-context');
+
+    var transport = {
+        running     : false
+    };
+
+    var main = {
+        toolbar     : new Toolbar(document.querySelector('#toolbar'))
+    };
+
+    var env = {
+        toolbar     : new Toolbar(document.querySelector('#env .toolbar'))
+    }
+
+    var io = {
+        registry    : new Collection(),
+        active      : new Collection(),
+        toolbar     : new Toolbar(document.querySelector('#io .toolbar'))
+    };
+
+    //
+    // Helpers
+
+    function isValidKey(key) {
+        return key.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/) && !$env.has(key);
+    }
+
+    function isNativeFunctionInstance(obj) {
+        return obj && !!obj.steptoeFunctionInstance;
+    }
+
+    // Transport
+
+    function reset() {
+        stop();
+    }
+
+    function stop() {
+        transport.running = false;
+    }
+
+    function start() {
+        if (transport.running) {
+            return;
+        }
+    }
+
+    main.toolbar.addButton({
+        icon: 'repeat',
+        className: 'reset',
+        callback: reset
+    });
+
+    main.toolbar.addButton({
+        icon: 'stop',
+        className: 'pause',
+        callback: stop
+    });
+
+    main.toolbar.addButton({
+        icon: 'play',
+        className: 'play',
+        callback: start
+    });
+
+    //
+    // Env toolbar
+
+    function showEnvMenu() {
+        
+        if (env.menu) return;
+
+        var $bubble = $('<div class="bubble"><div class="inner block-menu"></div></div>');
+        var $inner = $bubble.find('.inner');
+
+        $inner.append("<a data-type='function' class='type function active' href='#'>&lambda;</a>");
+        $inner.append("<a data-type='image' class='type image' href='#'><i class='fa fa-picture-o'></i></a>");
+        $inner.append("<a data-type='sound' class='type sound' href='#'><i class='fa fa-volume-up'></i></a>");
+        $inner.append("<div class='name-input'><input type='text' placeholder='Key'> <a href='#' class='submit'>Go</a></div>");
+
+        var type = 'function';
+
+        function submit() {
+            var type = $types.filter('.active').attr('data-type');
+            var name = $input.val();
+            if (isValidKey(name)) {
+                if (type === 'function') {
+                    var fn = steptoe.createFunction();
+                    fn.setName(name);
+                    $env.def(name, fn.createInstance());
+                } else if (type === 'image') {
+                    $env.def(name, new types.Image());
+                } else if (type === 'sound') {
+                    $env.def(name, new types.Sound());
+                }
+                cancel(true);
+            } else {
+                $bubble.stop().css({marginLeft: 0});
+                for (var i = 0; i < 3; ++i) {
+                    $bubble.animate({marginLeft: -10}, 50);
+                    $bubble.animate({marginLeft: 10}, 50);
+                }
+                $bubble.animate({marginLeft: 0}, 50);
+            }
+        }
+
+        var $types = $inner.find('.type');
+        $types.click(function() {
+            $types.removeClass('active');
+            this.classList.add('active');
+        });
+
+        var $input = $inner.find('input[type=text]');
+        $input.keydown(function(evt) {
+            if (evt.which === 13) {
+                submit();
+            }
+        });
+
+        $inner.find('a.submit').click(submit);
+        
+        $bubble.css({
+            top: 100,
+            left: 100
+        });
+
+        $bubble.hide().appendTo(document.body).fadeIn(100, function() {
+            $input.focus();
+        });
+
+        env.menu = $bubble;
+
+        //
+        // CancellatioN!
+
+        function cancel(evt) {
+            if (env.menu && (evt === true || $(evt.target).closest('.bubble').length == 0)) {
+                env.menu.fadeOut(100, function() {
+                    env.menu.remove();
+                    env.menu = null;
+                });
+                document.body.removeEventListener('click', cancel, true);
+            }
+        }
+
+        document.body.addEventListener('click', cancel, true);
+
+    }
+
+    env.toolbar.addButton({
+        icon: 'plus',
+        className: 'add',
+        callback: function() {
+            showEnvMenu();
+        }
+    });
+
+    //
+    // Handlers for root env
+
+    function envControllerForThing(name, thing) {
+        if (typeof thing === 'function') {
+            return new C.EnvForeignFunctionController(name, thing);
+        } else if (thing instanceof types.Sound) {
+            return new C.EnvSoundController(name, thing);
+        } else if (thing instanceof types.Image) {
+            return new C.EnvImageController(name, thing);
+        } else if (isNativeFunctionInstance(thing)) {
+            return new C.EnvFunctionController(name, thing);
+        } else {
+            return null;
+        }
+    }
+
+    $env.on('define', function(thisEnv, key, value) {
+        
+        var controller = envControllerForThing(key, value);
+        
+        var root = controller.getRoot();
+        root.addClass('out');
+
+        var $newNode = $('<li/>')
+                            .append(root)
+                            .attr('data-env-key', key);
+
+        var $lis = $('#env .env li');
+        var inserted = false;
+
+        $lis.each(function(ix) {
+            var thatKey = this.getAttribute('data-env-key');
+            if (!inserted && key < thatKey) {
+                $newNode.insertBefore(this);
+                inserted = true;
+            }
+        });
+
+        if (!inserted) {
+            $('#env .env').append($newNode);
+        }
+
+        setTimeout(function() {
+            root.removeClass('out');
+        }, 0);
+
+    });
+
+    $env.on('undefine', function(thisEnv, key, value) {
+        $('#env .env li[data-env-key="' + key + '"]').remove();
+    });
+
+    $env.on('set', function(thisEnv, key, value) {
+        
+    });
+
+    $env.on('rename', function(thisEnv, oldKey, newKey, value) {
+
+    });
+
+    //
+    // UI handlers
+
+    // $('#add-io').click(function() {
+
+    // });
+
+
+    $('#env .env').on('click', '.expander', function(evt) {
+        var $item = $(this).closest('.item');
+        if ($item.is('.expanded')) {
+            $('i', this).removeClass('fa-rotate-180');
+            $item.removeClass('expanded');
+            $item.find('.content').slideUp();
+        } else {
+            $('i', this).addClass('fa-rotate-180');
+            $item.addClass('expanded');
+            $item.find('.content').slideDown();
+        }
+    });
+
+    $('#env .env').on('click', '.edit', function(evt) {
+        evt.preventDefault();
+        var $wrapper = $(this).closest('li');
+        var key = $wrapper.attr('data-env-key');
+        var obj = $env.get(key);
+        if (isNativeFunctionInstance(obj)) {
+            editFunction(obj);
+        }
+    });
+
+    //
+    // IO toolbar
+
+    function addIO(ioSpec) {
+        var theIO = ioSpec.create($env);
+
+        theIO.on('destroyed', function() {
+            io.active.remove(theIO);
+        });
+
+        io.active.add(theIO);
+    }
+
+    io.registry.on('change:add', function(evt) {
+
+        var newIO = evt.item;
+        
+        var button = io.toolbar.addButton({
+            icon        : newIO.icon,
+            title       : newIO.name,
+            className   : newIO.className,
+            callback    : function() {
+                addIO(newIO);
+            }
+        });
+
+    });
+
+    io.active.on('change:add', function(evt) {
+        $('#io .track-contents').append($('<li></li>').append(evt.item.el));
+    });
+
+    io.active.on('change:remove', function(evt) {
+
+        var theIO = evt.item;
+
+        $('#io .track-contents li').each(function() {
+            if (this.childNodes[0].ioInstance === theIO) {
+                this.parentNode.removeChild(this);
+            }
+        });
+    });
+
+    //
+    // IO track
+
+    $('#io .track-contents').on('click', '.io-instance .destroy', function() {
+        $(this).closest('.io-instance')[0].ioInstance.destroy();
+    });
+
+    //
+    // Set up default IO
+
+    io.registry.add(require('./io/audio'));
+    io.registry.add(require('./io/canvas'));
+    io.registry.add(require('./io/console'));
+    
+    //
+    // Add some stuff
+
+     var fn = steptoe.createFunction();
+     fn.setName("test_function");
+     $env.def("test_function", fn.createInstance());
+
+}
+},{"./Collection":2,"./Toolbar":3,"./controllers":10,"./io/audio":11,"./io/canvas":12,"./io/console":13,"./types":19,"audio-context":20,"steptoe":21}],5:[function(require,module,exports){
+var T = require('traitor');
+
+var EnvForeignFunctionController = module.exports = T.make(['gui:controller'], {
+
+	__construct: function(name, fn) {
+		this._name = name;
+		this._fn = fn;
+		this._createRootWithTemplate('foreign-function');
+		this.sync();
+	},
+
+	sync: function() {
+		this._root.find('.name').text(this._name + "()");
+	}
+
+});
+
+},{"traitor":52}],6:[function(require,module,exports){
+var T = require('traitor');
+
+var EnvFunctionController = module.exports = T.make(['gui:controller'], {
+
+	__construct: function(name, fn) {
+		this._name = name;
+		this._fn = fn;
+		this._createRootWithTemplate('function');
+		this.sync();
+	},
+
+	sync: function() {
+		this._root.find('.name').text(this._name + "()");
+	}
+	
+});
+
+},{"traitor":52}],7:[function(require,module,exports){
+var T = require('traitor');
+
+var EnvImageController = module.exports = T.make(['gui:controller'], {
+
+	__construct: function(name, image) {
+		
+		this._name = name;
+		this._image = image;
+		this._createRootWithTemplate('image');
+
+		var $preview = this._root.find('.preview');
+
+		$preview[0].addEventListener('dragenter', function(evt) {
+			evt.preventDefault();
+			$preview.addClass('drop-active');
+		});
+
+		$preview[0].addEventListener('dragover', function(evt) {
+			evt.preventDefault();
+		});
+
+		$preview[0].addEventListener('dragleave', function() {
+			$preview.removeClass('drop-active');
+		});
+
+		$preview[0].addEventListener('drop', function(evt) {
+			$preview.removeClass('drop-active');
+
+			evt.preventDefault();
+
+			var dt = evt.dataTransfer;
+
+			var files = dt.files;
+			if (files.length != 1) {
+				console.error("only single files are supported!");
+				return;
+			}
+
+			var img = new Image();
+			img.src = window.URL.createObjectURL(files[0]);
+
+			this._image._setImage(img); // FIXME: should just re-assign the image to the environment
+			$preview.css({backgroundImage: 'url(' + img.src + ')' });
+
+			return false;
+
+		}.bind(this));
+
+		this.sync();
+
+	},
+
+	sync: function() {
+		this._root.find('.name').text(this._name);
+	}
+
+});
+
+},{"traitor":52}],8:[function(require,module,exports){
+var T = require('traitor');
+var audioContext = require('audio-context');
+
+var EnvSoundController = module.exports = T.make(['gui:controller'], {
+
+	__construct: function(name, sound) {
+
+		this._name = name;
+		this._sound = sound;
+		this._createRootWithTemplate('sound');
+
+		//
+		// Playback
+
+		var source = null;
+
+		function stop() {
+			if (source) {
+				source.stop(0);
+				source = null;
+			}
+		}
+
+		this._root.find('button.play').click(function() {
+
+			stop();
+
+			var buffer = this._sound.getBuffer();
+			if (buffer) {
+				source = audioContext.createBufferSource();
+				source.buffer = buffer;
+				source.connect(audioContext.destination);
+				source.start(0);
+			}
+
+		}.bind(this));
+
+		this._root.find('button.stop').click(stop);
+
+		//
+		// DnD
+
+		var preview = this._preview = this._root.find('.preview');
+
+		preview[0].addEventListener('dragenter', function(evt) {
+			evt.preventDefault();
+			preview.addClass('drop-active');
+		});
+
+		preview[0].addEventListener('dragover', function(evt) {
+			evt.preventDefault();
+		});
+
+		preview[0].addEventListener('dragleave', function() {
+			preview.removeClass('drop-active');
+		});
+
+		preview[0].addEventListener('drop', function(evt) {
+			preview.removeClass('drop-active');
+
+			evt.preventDefault();
+
+			var dt = evt.dataTransfer;
+
+			var files = dt.files;
+			if (files.length != 1) {
+				console.error("only single files are supported!");
+				return;
+			}
+
+			var reader = new FileReader();
+			reader.onloadend = function(evt) {
+				if (reader.result) {
+					audioContext.decodeAudioData(reader.result, function(buffer) {
+						this._sound._setBuffer(buffer); // FIXME: should just re-set in env. sounds want to be immutable.
+						this._sync();
+					}.bind(this), function(e) {
+						console.error("Error decoding buffer", e);
+					});
+				}
+			}.bind(this);
+
+			reader.readAsArrayBuffer(files[0]);
+
+			return false;
+
+		}.bind(this));
+
+		this._sync();
+
+	},
+
+	_sync: function() {
+		
+		this._root.find('.name').text(this._name);
+
+		var buffer 	= this._sound.getBuffer(),
+			width 	= this._preview.width(),
+			height 	= this._preview.height(),
+			canvas 	= this._preview[0];
+
+		canvas.width = width;
+		canvas.height = height;
+
+		var ctx = canvas.getContext('2d');
+
+		ctx.clearRect(0, 0, width, height);
+
+		if (!buffer) {
+			return;
+		}
+
+		var data 		= buffer.getChannelData(0),
+			step 		= data.length / width,
+			halfHeight	= height / 2;
+		
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth 	= 1;
+
+		ctx.save();
+		ctx.translate(0, height / 2);
+		ctx.beginPath();
+		ctx.moveTo(0, 0);
+
+		for (var i = 0; i < width; ++i) {
+			var v = data[Math.floor(step * i)] * halfHeight;
+			ctx.lineTo(i, v);
+		}
+
+		ctx.stroke();
+		ctx.restore();
+
+	}
+
+});
+
+},{"audio-context":20,"traitor":52}],9:[function(require,module,exports){
+var T = require('traitor');
+
+var FunctionEditorController = module.exports = T.make(['gui:controller'], {
+
+	__construct: function(functionInstance) {
+		
+		var fn = functionInstance.fn;
+		var env = fn.env;
+
+		this._createRootWithTemplate('function-editor');
+		
+	},
+
+	sync: function() {
+		
+	}
+
+});
+
+},{"traitor":52}],10:[function(require,module,exports){
+module.exports = {
+	EnvForeignFunctionController	: require('./EnvForeignFunctionController'),
+	EnvFunctionController			: require('./EnvFunctionController'),
+	EnvImageController				: require('./EnvImageController'),
+	EnvSoundController				: require('./EnvSoundController'),
+	FunctionEditorController		: require('./FunctionEditorController')
+};
+},{"./EnvForeignFunctionController":5,"./EnvFunctionController":6,"./EnvImageController":7,"./EnvSoundController":8,"./FunctionEditorController":9}],11:[function(require,module,exports){
+module.exports = {
+    name        : 'Audio',
+    icon        : 'volume-up',
+    className   : 'io-audio',
+    create      : function(env) { return new Audio(env); }
+};
+
+var T = require('traitor');
+
+var Audio = T.make(['events', 'gui:io'], {
+
+    __construct: function(env) {
+
+        this.env = env;
+        
+        this.el = document.createElement('div');
+        this.el.className = 'io-instance io-audio';
+        this.el.ioInstance = this;
+
+        this.el.innerHTML = "<a href='#' class='destroy'><i class='fa fa-minus-circle'></i></a>";
+
+        this._addFunction('play', function() {
+
+        });
+
+    }
+
+});
+
+},{"traitor":52}],12:[function(require,module,exports){
+module.exports = {
+    name        : 'Canvas',
+    icon        : 'picture-o',
+    className   : 'io-canvas',
+    create      : function(env) { return new Canvas(env); }
+};
+
+var T = require('traitor');
+
+var Canvas = T.make(['events', 'gui:io'], {
+
+    __construct: function(env) {
+
+        this.env = env;
+        
+        this.el = document.createElement('div');
+        this.el.className = 'io-instance io-canvas';
+        this.el.ioInstance = this;
+
+        this.el.innerHTML = "<a href='#' class='destroy'><i class='fa fa-minus-circle'></i></a>";
+
+        this._addFunction('clear', function() {
+
+        });
+
+        this._addFunction('moveTo', function() {
+
+        });
+
+        this._addFunction('lineTo', function() {
+
+        });
+
+        this._addFunction('circle', function() {
+
+        });
+
+        this._addFunction('square', function() {
+
+        });
+
+        this._addFunction('rectangle', function() {
+
+        });
+
+    }
+
+});
+
+},{"traitor":52}],13:[function(require,module,exports){
+module.exports = {
+    name        : 'Console',
+    icon        : 'terminal',
+    className   : 'io-console',
+    create      : function(env) { return new Console(env); }
+};
+
+var T = require('traitor');
+
+var Console = T.make(['events', 'gui:io'], {
+
+    __construct: function(env) {
+
+        this.env = env;
+        
+        this.el = document.createElement('div');
+        this.el.className = 'io-instance io-console';
+        this.el.ioInstance = this;
+
+        this.el.innerHTML = "<a href='#' class='destroy'><i class='fa fa-minus-circle'></i></a>";
+
+        this._addFunction('print', function() {
+
+        });
+    
+    }
+
+});
+
+},{"traitor":52}],14:[function(require,module,exports){
+var T = require('traitor');
+
+T.register('gui:controller', {
+
+	requires: ['events'],
+
+	prepare: function(def) {
+
+		
+
+	},
+
+	apply: function(def) {
+
+		def.method('getRoot', function() {
+			return this._root;
+		});
+
+		def.method('_setRoot', function(root) {
+			this._root = root;
+		});
+
+		def.method('_createRootWithTemplate', function(tpl) {
+			this._root = this._getTemplate(tpl);
+			this._root[0].controller = this;
+		});
+
+		def.method('_getTemplate', function(tpl) {
+			return $('#templates [data-template-id=' + tpl + '] > :eq(0)').clone();
+		});
+
+	}
+
+});
+},{"traitor":52}],15:[function(require,module,exports){
+require('./controller');
+require('./io');
+},{"./controller":14,"./io":16}],16:[function(require,module,exports){
+var T = require('traitor');
+
+T.register('gui:io', {
+
+	requires: ['events'],
+
+	prepare: function(def) {
+
+	},
+
+	apply: function(def) {
+
+		def.method('destroy', function() {
+
+			if (this._addedFunctions) {
+				this._addedFunctions.forEach(function(name) {
+				    this.env.undef(name);
+				}, this);
+			}
+
+			this._teardown();
+
+			this.emit('destroyed');
+		
+		});
+
+		def.method('_teardown', function() {
+
+		});
+
+		def.method('_addFunction', function(name, fn) {
+
+			if (!this._addedFunctions) {
+				this._addedFunctions = [];
+			}
+
+			fn.locked = true;
+			this.env.def(name, fn);
+			
+			this._addedFunctions.push(name);
+
+		});
+
+	}
+
+});
+},{"traitor":52}],17:[function(require,module,exports){
+// TODO: these should not be mutable
+var Image = module.exports = function() {
+	this._image = null;
+}
+
+Image.prototype.getImage = function() {
+	return this._image;
+}
+
+Image.prototype._setImage = function(image) {
+	this._image = image;
+}
+},{}],18:[function(require,module,exports){
+var Sound = module.exports = function() {
+	this._buffer = null;
+}
+
+Sound.prototype.getBuffer = function() {
+	return this._buffer;
+}
+
+Sound.prototype._setBuffer = function(buffer) {
+	this._buffer = buffer;
+}
+},{}],19:[function(require,module,exports){
+module.exports = {
+	Image		: require('./Image'),
+	Sound		: require('./Sound')
+};
+},{"./Image":17,"./Sound":18}],20:[function(require,module,exports){
+var Context = window.webkitAudioContext || window.AudioContext;
+if (Context) module.exports = new Context;
+},{}],21:[function(require,module,exports){
+var parser = require('./lib/parser');
+var Env = require('./lib/Env');
+var FunctionDef = require('./lib/runtime/FunctionDef');
+
+function createEnv() {
+	return new Env();
+}
+
+function createFunction() {
+	return new FunctionDef();
+}
 
 function parseProgram(src) {
     return parser.parse(src, {startRule: 'Program'});
@@ -17,12 +923,97 @@ function parseFunction(src) {
 module.exports = {
     Machine         : require('./lib/Machine'),
     SyntaxError     : parser.SyntaxError,
+
+    createEnv 		: createEnv,
+    createFunction	: createFunction,
+
     parseProgram    : parseProgram,
     parseFunction   : parseFunction
 };
-},{"./lib/Machine":2,"./lib/parser":3,"traitor":27}],2:[function(require,module,exports){
-var E = require('lexical-env'),
-    A = require('./runtime'),
+
+},{"./lib/Env":22,"./lib/Machine":23,"./lib/parser":24,"./lib/runtime/FunctionDef":30}],22:[function(require,module,exports){
+var Env = module.exports = function(parent) {
+	this._parent = parent || null;
+	this._env = {};
+}
+
+Env.prototype.on = function(evt, callback) {
+	var ahs = this._handlers ? this._handlers : (this._handlers = {});
+	var ehs = ahs[evt] ? ahs[evt] : (ahs[evt] = []);
+
+	ehs.push(callback);
+
+	var removed = false;
+	return function() {
+		if (removed) return;
+		ehs.splice(ehs.indexOf(callback), 1);
+	}
+}
+
+Env.prototype.emit = function(evt) {
+	if (!this._handlers) return;
+	var ehs = this._handlers[evt];
+	if (!ehs) return;
+	var args = Array.prototype.slice.call(arguments, 1);
+	ehs.forEach(function(eh) { eh.apply(null, args); });
+}
+
+Env.prototype.beget = function() {
+	return new Env(this);
+}
+
+Env.prototype.begetFrame = function(params, values) {
+	var child = this.beget();
+	for (var i = 0, l = params.length; i < l; ++i) {
+		child._env[params[i]] = values[i];
+	}
+	return child;
+}
+
+Env.prototype.find = function(key) {
+	if (key in this._env) {
+		return this;
+	} else if (this._parent) {
+		return this._parent.find(key);
+	} else {
+		throw new Error("unknown key: " + key);
+	}
+}
+
+Env.prototype.has = function(key) {
+	return key in this._env;
+}
+
+Env.prototype.get = function(key) {
+	return this.find(key)._env[key];
+}
+
+Env.prototype.set = function(key, value) {
+	this.find(key)._env[key] = value;
+	this.emit('set', this, key, value);
+}
+
+Env.prototype.def = function(key, value) {
+	if (key in this._env) {
+		throw new Error("duplicate key: " + key);
+	} else {
+		this._env[key] = value;
+		this.emit('define', this, key, value);
+	}
+}
+
+Env.prototype.undef = function(key) {
+	if (!(key in this._env)) {
+		throw new Error("unknown key: " + key);
+	} else {
+		var val = this._env[key];
+		delete this._env[key];
+		this.emit('undefine', this, key, val);
+	}
+}
+
+},{}],23:[function(require,module,exports){
+var A = require('./runtime'),
     T = require('./runtime/types');
 
 var Machine = module.exports = function() {};
@@ -82,7 +1073,7 @@ Machine.prototype.restart = function(env, main) {
     // to prevent the root env from being clobbered.
 
     this.rootEnv = env;
-    this.mainEnv = E.create(env);
+    this.mainEnv = env.beget();
 
     this.stack = [this.mainEnv];
 
@@ -125,7 +1116,7 @@ Machine.prototype.step = function() {
     );
 }
 
-},{"./runtime":24,"./runtime/types":25,"lexical-env":26}],3:[function(require,module,exports){
+},{"./runtime":45,"./runtime/types":46}],24:[function(require,module,exports){
 module.exports = (function() {
   /*
    * Generated by PEG.js 0.8.0.
@@ -4853,12 +5844,12 @@ module.exports = (function() {
   };
 })();
 
-},{"./runtime":24}],4:[function(require,module,exports){
+},{"./runtime":45}],25:[function(require,module,exports){
 var T = require('traitor');
 
 var ArrayLiteral = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').ARRAY_LITERAL,
         
@@ -4890,14 +5881,13 @@ var ArrayLiteral = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],5:[function(require,module,exports){
+},{"./types":46,"traitor":47}],26:[function(require,module,exports){
 var T = require('traitor');
-var E = require('lexical-env');
 var types = require('./types');
 
 var AssignExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').ASSIGN_EXP,
         
@@ -4929,7 +5919,7 @@ var AssignExp = module.exports = T.make(
                     frame.state = 5;
                 }
             } else if (frame.state === 1) {
-                E.set(env, this.left.name, vm.retVal);
+                env.set(this.left.name, vm.retVal);
                 vm.ret(vm.retVal);
             } else if (frame.state === 2) {
                 frame.value = vm.retVal;
@@ -4956,7 +5946,7 @@ var AssignExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"lexical-env":26,"traitor":27}],6:[function(require,module,exports){
+},{"./types":46,"traitor":47}],27:[function(require,module,exports){
 var T = require('traitor');
 
 var OPS = {
@@ -4983,7 +5973,7 @@ var OPS = {
 
 var BinOpExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').BIN_OP_EXP,
         
@@ -5017,14 +6007,13 @@ var BinOpExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],7:[function(require,module,exports){
+},{"./types":46,"traitor":47}],28:[function(require,module,exports){
 var T = require('traitor');
-var E = require('lexical-env');
 var types = require('./types');
 
 var CallExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: types.CALL_EXP,
         
@@ -5075,10 +6064,7 @@ var CallExp = module.exports = T.make(
                         throw new Error("argument mismatch");
                     }
                     
-                    var newEnv = E.create(callee.env);
-                    params.forEach(function(p, ix) {
-                        E.def(newEnv, p, frame.args[ix]);
-                    });
+                    var newEnv = callee.env.begetFrame(params, frame.args);
 
                     vm.pushEnv(newEnv);
                     vm.evaluate(callee);
@@ -5099,12 +6085,12 @@ var CallExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"lexical-env":26,"traitor":27}],8:[function(require,module,exports){
+},{"./types":46,"traitor":47}],29:[function(require,module,exports){
 var T = require('traitor');
 
 var ComputedMemberExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').COMPUTED_MEMBER_EXP,
         
@@ -5133,12 +6119,13 @@ var ComputedMemberExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],9:[function(require,module,exports){
+},{"./types":46,"traitor":47}],30:[function(require,module,exports){
 var T = require('traitor');
+var FunctionInstance = require('./FunctionInstance');
 
 var FunctionDef = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').FUNCTION_DEF,
         
@@ -5172,24 +6159,37 @@ var FunctionDef = module.exports = T.make(
 
         setBody: function(body) {
             this.body = body;
+        },
+
+        createInstance: function(env) {
+            return new FunctionInstance(this, env);
         }
 
     }
 
 )
 
-},{"./types":25,"traitor":27}],10:[function(require,module,exports){
+},{"./FunctionInstance":31,"./types":46,"traitor":47}],31:[function(require,module,exports){
 var T = require('traitor');
 
 var FunctionInstance = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
+        steptoeFunctionInstance: true,
         type: require('./types').FUNCTION_INSTANCE,
         
         __construct: function(fn, env) {
             this.fn = fn;
             this.env = env;
+        },
+
+        getFunction: function() {
+            return this.fn;
+        },
+
+        getEnv: function() {
+            return this.env;
         },
 
         newFrame: function() {
@@ -5229,14 +6229,13 @@ var FunctionInstance = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],11:[function(require,module,exports){
+},{"./types":46,"traitor":47}],32:[function(require,module,exports){
 var T = require('traitor');
-var E = require('lexical-env');
 var FunctionInstance = require('../runtime/FunctionInstance');
 
 var Functions = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').FUNCTIONS,
         
@@ -5255,7 +6254,7 @@ var Functions = module.exports = T.make(
         step: function(frame, env, vm) {
             if (frame.ix > 0) {
                 var fn = this.functions[frame.ix-1];
-                E.def(env, fn.getName(), new FunctionInstance(fn, env));
+                env.def(fn.getName(), new FunctionInstance(fn, env));
             }
             if (frame.ix < this.functions.length) {
                 // no-op
@@ -5269,13 +6268,12 @@ var Functions = module.exports = T.make(
 
 )
 
-},{"../runtime/FunctionInstance":10,"./types":25,"lexical-env":26,"traitor":27}],12:[function(require,module,exports){
+},{"../runtime/FunctionInstance":31,"./types":46,"traitor":47}],33:[function(require,module,exports){
 var T = require('traitor');
-var E = require('lexical-env');
 
 var Ident = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').IDENT,
         
@@ -5288,19 +6286,19 @@ var Ident = module.exports = T.make(
         },
 
         step: function(frame, env, vm) {
-            vm.ret(E.get(env, this.name));
+            vm.ret(env.get(this.name));
         }
 
     }
 
 )
 
-},{"./types":25,"lexical-env":26,"traitor":27}],13:[function(require,module,exports){
+},{"./types":46,"traitor":47}],34:[function(require,module,exports){
 var T = require('traitor');
 
 var IfStmt = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').IF_STMT,
         
@@ -5347,12 +6345,12 @@ var IfStmt = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],14:[function(require,module,exports){
+},{"./types":46,"traitor":47}],35:[function(require,module,exports){
 var T = require('traitor');
 
 var LogicalAndExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').LOGICAL_AND_EXP,
         
@@ -5384,12 +6382,12 @@ var LogicalAndExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],15:[function(require,module,exports){
+},{"./types":46,"traitor":47}],36:[function(require,module,exports){
 var T = require('traitor');
 
 var LogicalOrExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').LOGICAL_OR_EXP,
         
@@ -5421,12 +6419,12 @@ var LogicalOrExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],16:[function(require,module,exports){
+},{"./types":46,"traitor":47}],37:[function(require,module,exports){
 var T = require('traitor');
 
 var ObjectLiteral = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').OBJECT_LITERAL,
         
@@ -5460,12 +6458,12 @@ var ObjectLiteral = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],17:[function(require,module,exports){
+},{"./types":46,"traitor":47}],38:[function(require,module,exports){
 var T = require('traitor');
 
 var PrimitiveLiteral = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').PRIMITIVE_LITERAL,
         
@@ -5485,12 +6483,12 @@ var PrimitiveLiteral = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],18:[function(require,module,exports){
+},{"./types":46,"traitor":47}],39:[function(require,module,exports){
 var T = require('traitor');
 
 var ReturnStmt = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').RETURN_STMT,
         
@@ -5533,14 +6531,14 @@ var ReturnStmt = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],19:[function(require,module,exports){
+},{"./types":46,"traitor":47}],40:[function(require,module,exports){
 var T = require('traitor');
 var types = require('./types');
 var ReturnStmt = require('./ReturnStmt');
 
 var Statements = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').STATEMENTS,
         
@@ -5575,12 +6573,12 @@ var Statements = module.exports = T.make(
 
 )
 
-},{"./ReturnStmt":18,"./types":25,"traitor":27}],20:[function(require,module,exports){
+},{"./ReturnStmt":39,"./types":46,"traitor":47}],41:[function(require,module,exports){
 var T = require('traitor');
 
 var StaticMemberExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').STATIC_MEMBER_EXP,
         
@@ -5606,7 +6604,7 @@ var StaticMemberExp = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],21:[function(require,module,exports){
+},{"./types":46,"traitor":47}],42:[function(require,module,exports){
 var T = require('traitor');
 
 var OPS = {
@@ -5618,7 +6616,7 @@ var OPS = {
 
 var UnaryOpExp = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').UNARY_OP_EXP,
         
@@ -5648,13 +6646,12 @@ var UnaryOpExp = module.exports = T.make(
 
 );
 
-},{"./types":25,"traitor":27}],22:[function(require,module,exports){
+},{"./types":46,"traitor":47}],43:[function(require,module,exports){
 var T = require('traitor');
-var E = require('lexical-env');
 
 var Variables = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').VARIABLES,
         
@@ -5675,9 +6672,9 @@ var Variables = module.exports = T.make(
         step: function(frame, env, vm) {
             if (frame.ix > 0) {
                 if (this.initialValues[frame.ix-1]) {
-                    E.def(env, this.names[frame.ix-1], vm.retVal);
+                    env.def(this.names[frame.ix-1], vm.retVal);
                 } else {
-                    E.def(env, this.names[frame.ix-1], null);
+                    env.def(this.names[frame.ix-1], null);
                 }
             }
             if (frame.ix < this.names.length) {
@@ -5696,12 +6693,12 @@ var Variables = module.exports = T.make(
 
 )
 
-},{"./types":25,"lexical-env":26,"traitor":27}],23:[function(require,module,exports){
+},{"./types":46,"traitor":47}],44:[function(require,module,exports){
 var T = require('traitor');
 
 var WhileStmt = module.exports = T.make(
 
-    [ 'st:emitter' ], {
+    [ 'events' ], {
 
         type: require('./types').WHILE_STMT,
         
@@ -5740,7 +6737,7 @@ var WhileStmt = module.exports = T.make(
 
 )
 
-},{"./types":25,"traitor":27}],24:[function(require,module,exports){
+},{"./types":46,"traitor":47}],45:[function(require,module,exports){
 module.exports = {
     ArrayLiteral        : require('./ArrayLiteral'),
     AssignExp           : require('./AssignExp'),
@@ -5763,7 +6760,7 @@ module.exports = {
     Variables           : require('./Variables'),
     WhileStmt           : require('./WhileStmt')
 };
-},{"./ArrayLiteral":4,"./AssignExp":5,"./BinOpExp":6,"./CallExp":7,"./ComputedMemberExp":8,"./FunctionDef":9,"./FunctionInstance":10,"./Functions":11,"./Ident":12,"./IfStmt":13,"./LogicalAndExp":14,"./LogicalOrExp":15,"./ObjectLiteral":16,"./PrimitiveLiteral":17,"./ReturnStmt":18,"./Statements":19,"./StaticMemberExp":20,"./UnaryOpExp":21,"./Variables":22,"./WhileStmt":23}],25:[function(require,module,exports){
+},{"./ArrayLiteral":25,"./AssignExp":26,"./BinOpExp":27,"./CallExp":28,"./ComputedMemberExp":29,"./FunctionDef":30,"./FunctionInstance":31,"./Functions":32,"./Ident":33,"./IfStmt":34,"./LogicalAndExp":35,"./LogicalOrExp":36,"./ObjectLiteral":37,"./PrimitiveLiteral":38,"./ReturnStmt":39,"./Statements":40,"./StaticMemberExp":41,"./UnaryOpExp":42,"./Variables":43,"./WhileStmt":44}],46:[function(require,module,exports){
 var next = 1;
 function iota() { return next++; }
 
@@ -5789,46 +6786,7 @@ module.exports = {
     VARIABLES           : iota(),
     WHILE_STMT          : iota()
 };
-},{}],26:[function(require,module,exports){
-exports.create  = create;
-exports.find    = find;
-exports.def     = def;
-exports.get     = get;
-exports.set     = set;
-
-var hop = Object.prototype.hasOwnProperty,
-    gpo = Object.getPrototypeOf;
-
-function create(parent) {
-    return Object.create(parent || null);
-}
-
-function find(env, key) {
-    while (env) {
-        if (hop.call(env, key)) {
-            return env;
-        } else {
-            env = gpo(env);
-        }
-    }
-    throw new Error("unknown environment key: " + key);
-}
-
-function def(env, key, value) {
-    if (hop.call(env, key)) {
-        throw new Error("cannot redefine key: " + key);
-    }
-    env[key] = value;
-}
-
-function get(env, key) {
-    return find(env, key)[key];
-}
-
-function set(env, key, value) {
-    find(env, key)[key] = value;
-}
-},{}],27:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 var registry        = require('./lib/registry'),
     TraitBuilder    = require('./lib/TraitBuilder'),
     TraitInstance   = require('./lib/TraitInstance');
@@ -5870,7 +6828,7 @@ function extend(sup, traits, opts) {
 }
 
 require('./lib/builtins');
-},{"./lib/TraitBuilder":28,"./lib/TraitInstance":29,"./lib/builtins":30,"./lib/registry":31}],28:[function(require,module,exports){
+},{"./lib/TraitBuilder":48,"./lib/TraitInstance":49,"./lib/builtins":50,"./lib/registry":51}],48:[function(require,module,exports){
 module.exports      = TraitBuilder;
 
 var registry        = require('./registry'),
@@ -6048,7 +7006,7 @@ TraitBuilder.prototype.property = function(name, descriptor) {
     Object.defineProperty(this._properties, name, descriptor);
 }
 
-},{"./TraitInstance":29,"./registry":31}],29:[function(require,module,exports){
+},{"./TraitInstance":49,"./registry":51}],49:[function(require,module,exports){
 module.exports = TraitInstance;
 
 function TraitInstance(name, trait, args) {
@@ -6090,7 +7048,7 @@ TraitInstance.prototype.prepare = function(builder) {
 TraitInstance.prototype.applyTo = function(builder) {
     this.trait.apply.apply(null, [builder].concat(this.args));
 }
-},{}],30:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 var registry = require('./registry');
 
 registry.register('meta', function(def) {
@@ -6105,45 +7063,134 @@ registry.register('meta', function(def) {
 
 });
 
-registry.register('emitter', function(def) {
+registry.register('events', {
+    
+    requires: [],
+    
+    prepare: function(def) {
 
-    var slice = Array.prototype.slice;
+    },
+    
+    apply: function(def) {
 
-    def.init(function() {
-        this._emitterHandlers = {};
-    });
+        var slice = Array.prototype.slice;
 
-    def.method('on', function(ev, callback) {
-        var lst = this._emitterHandlers[ev] || (this._emitterHandlers[ev] = []);
-        lst.push(callback);
-
-        var removed = false;
-        return function() {
-            if (!removed) {
-                lst.splice(lst.indexOf(callback), 1);
-                removed = true;
+        def.method('off', function(ev) {
+        
+            if (!this._eventHandlers) {
+                return;
             }
-        }
-    });
+            
+            if (ev) {
+                this._eventHandlers[ev] = [];
+            } else if (!ev) {
+                this._eventHandlers = {};
+            }
 
-    def.method('once', function(ev, callback) {
-        var cancel = this.on(ev, function() {
-            callback.apply(null, arguments);
-            cancel();
         });
-        return cancel;
-    });
 
-    def.method('emit', function(ev) {
-        var lst = this._emitterHandlers[ev];
-        if (lst) {
-            var args = slice.call(arguments, 1);
-            for (var i = 0, l = lst.length; i < l; ++i) {
-                lst[i].apply(null, args);
+        def.method('on', function(ev, callback) {
+
+            var hnds    = this._eventHandlers || (this._eventHandlers = {}),
+                lst     = hnds[ev] || (hnds[ev] = []);
+
+            lst.push(callback);
+
+            var removed = false;
+            return function() {
+                if (!removed) {
+                    lst.splice(lst.indexOf(callback), 1);
+                    removed = true;
+                }
             }
-        }
-    });
 
+        });
+
+        def.method('once', function(ev, callback) {
+            
+            var cancel = this.on(ev, function() {
+                callback.apply(null, arguments);
+                cancel();
+            });
+
+            return cancel;
+        
+        });
+
+        def.method('emit', function(ev) {
+
+            var args = null;
+
+            var hnds = this._eventHandlers;
+            if (!hnds) return;
+
+            var lst = hnds[ev];
+            if (lst) {
+                args = slice.call(arguments, 1);
+                for (var i = 0, l = lst.length; i < l; ++i) {
+                    lst[i].apply(null, args);
+                }
+            }
+
+            var cix = ev.lastIndexOf(':');
+            if (cix >= 0) {
+                if (args === null) {
+                    args = slice.call(arguments, 1);
+                }
+                this.emitArray(ev.substring(0, cix), args);
+            }
+
+        });
+
+        def.method('emitArray', function(ev, args) {
+
+            var hnds = this._eventHandlers;
+            if (!hnds) return;
+            
+            var lst = hnds[ev];
+            if (lst) {
+                for (var i = 0, l = lst.length; i < l; ++i) {
+                    lst[i].apply(null, args);
+                }
+            }
+
+            var cix = ev.lastIndexOf(':');
+            if (cix >= 0) {
+                this.emitArray(ev.substring(0, cix), args);
+            }
+
+        });
+
+        def.method('emitAfter', function(delay, ev) {
+
+            var self    = this,
+                timer   = null,
+                args    = slice.call(arguments, 2);
+
+            timer = setTimeout(function() {
+                self.emitArray(ev, args);
+            }, delay);
+
+            return function() { clearTimeout(timer); }
+
+        });
+
+        def.method('emitEvery', function(interval, ev) {
+
+            var self    = this,
+                timer   = null,
+                args    = slice.call(arguments, 2);
+
+            var timer = setInterval(function() {
+                self.emitArray(ev, args);
+            }, delay);
+
+            return function() { clearInterval(timer); }
+
+        });
+
+    }
+    
 });
 
 registry.register('methods', function(def) {
@@ -6160,7 +7207,7 @@ registry.register('methods', function(def) {
     });
 
 });
-},{"./registry":31}],31:[function(require,module,exports){
+},{"./registry":51}],51:[function(require,module,exports){
 exports.get = get;
 exports.register = register;
 exports.expand = expand;
@@ -6242,48 +7289,66 @@ function expand(traits) {
     });
     return expanded;
 }
-},{}],32:[function(require,module,exports){
-var steptoe = require('steptoe');
+},{}],52:[function(require,module,exports){
+arguments[4][47][0].apply(exports,arguments)
+},{"./lib/TraitBuilder":53,"./lib/TraitInstance":54,"./lib/builtins":55,"./lib/registry":56}],53:[function(require,module,exports){
+module.exports=require(48)
+},{"./TraitInstance":54,"./registry":56}],54:[function(require,module,exports){
+module.exports=require(49)
+},{}],55:[function(require,module,exports){
+module.exports=require(50)
+},{"./registry":56}],56:[function(require,module,exports){
+module.exports=require(51)
+},{}],57:[function(require,module,exports){
+var gui = require('..');
 
 window.init = function() {
 
-    var canvas = $('#canvas')[0];
-    var ctx = canvas.getContext('2d');
-    ctx.lineWidth = 1;
+    var ui = new gui.UI();
 
-    $('#run').click(function() {
-
-        var code = $('#code').val();
-
-        var vm = new steptoe.Machine();
-
-        var main = steptoe.parseFunction(code);
-
-        var env = {
-            clear: function() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            },
-
-            line: function(x1, y1, x2, y2) {
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-            },
-
-
-
-            print: function(message) {
-                console.log(message);
-            }
-        };
-
-        vm.restart(env, main);
-        while (vm.isRunning()) {
-            vm.step();
-        }
-
-    });
-    
 }
-},{"steptoe":1}]},{},[32])
+
+// var steptoe = require('steptoe');
+
+// window.init = function() {
+
+//     var canvas = $('#canvas')[0];
+//     var ctx = canvas.getContext('2d');
+//     ctx.lineWidth = 1;
+
+//     $('#run').click(function() {
+
+//         var code = $('#code').val();
+
+//         var vm = new steptoe.Machine();
+
+//         var main = steptoe.parseFunction(code);
+
+//         var env = {
+//             clear: function() {
+//                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+//             },
+
+//             line: function(x1, y1, x2, y2) {
+//                 ctx.beginPath();
+//                 ctx.moveTo(x1, y1);
+//                 ctx.lineTo(x2, y2);
+//                 ctx.stroke();
+//             },
+
+
+
+//             print: function(message) {
+//                 console.log(message);
+//             }
+//         };
+
+//         vm.restart(env, main);
+//         while (vm.isRunning()) {
+//             vm.step();
+//         }
+
+//     });
+    
+// }
+},{"..":1}]},{},[57])
