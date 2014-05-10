@@ -1,0 +1,17 @@
+#!/bin/bash
+
+function ctrl_c() {
+	echo "** Abort!"
+	kill $PID_1
+	kill $PID_2
+}
+
+trap ctrl_c INT
+
+watchify -o build/exp-1.js index.js &
+PID_1=$!
+
+watchify -o demo/bundle.js demo/main.js &
+PID_2=$!
+
+wait
